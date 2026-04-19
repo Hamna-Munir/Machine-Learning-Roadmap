@@ -1,0 +1,50 @@
+name: machine-learning-roadmap
+
+channels:
+  - conda-forge
+  - defaults
+
+dependencies:
+  - python=3.11
+
+  # Core Libraries
+  - numpy
+  - pandas
+  - scipy
+
+  # Visualization
+  - matplotlib
+  - seaborn
+
+  # Machine Learning
+  - scikit-learn
+
+  # Time Series
+  - statsmodels
+
+  # Notebook Support
+  - jupyterlab
+
+  # Model Serialization
+  - joblib
+
+  # Deployment
+  - flask
+  - fastapi
+  - uvicorn
+
+  # Utility Libraries
+  - tqdm
+  - python-dotenv
+
+  # Pip packages (not fully supported via conda)
+  - pip
+  - pip:
+      - xgboost
+      - lightgbm
+      - catboost
+      - streamlit
+      - nltk
+      - spacy
+      - umap-learn
+      - mlflow
