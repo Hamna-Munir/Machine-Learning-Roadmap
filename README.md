@@ -12,7 +12,7 @@
 
 [![GitHub](https://img.shields.io/badge/GitHub-Hamna--Munir-black?style=for-the-badge\&logo=github)](https://github.com/Hamna-Munir)
 [![Python](https://img.shields.io/badge/Python-3.x-blue?style=for-the-badge\&logo=python)]()
-[![Machine Learning](https://img.shields.io/badge/Machine-Learning-Structured-orange?style=for-the-badge)]()
+[![Machine Learning](https://img.shields.io/badge/Machine-Learning-blue?style=for-the-badge&logo=scikitlearn)]()
 [![Status](https://img.shields.io/badge/Status-In%20Progress-brightgreen?style=for-the-badge)]()
 
 </div>
