@@ -226,12 +226,19 @@ Classification model for financial risk analysis
 # 🎯 **Goals of This Repository**
 
 ✔ Build strong Machine Learning fundamentals
+
 ✔ Practice algorithms with real datasets
+
 ✔ Understand model evaluation techniques
+
 ✔ Learn feature engineering strategies
+
 ✔ Apply hyperparameter tuning methods
+
 ✔ Implement real-world ML projects
+
 ✔ Prepare for Machine Learning interviews
+
 ✔ Build a professional AI portfolio
 
 ---
@@ -268,6 +275,7 @@ https://www.linkedin.com/in/hamna-munir-6891a72a0/
 # 🙌 **Contributions**
 
 This repository is currently **maintained individually**,
+
 but suggestions and improvements are always welcome.
 
 ---
@@ -275,6 +283,7 @@ but suggestions and improvements are always welcome.
 # ⭐ **Support**
 
 If you find this repository helpful, please ⭐ **star it on GitHub**
+
 It supports my continuous learning journey in Artificial Intelligence and Machine Learning!
 
 ---
