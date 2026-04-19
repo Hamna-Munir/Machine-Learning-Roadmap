@@ -1,0 +1,45 @@
+# Core Scientific Computing
+numpy
+pandas
+scipy
+
+# Data Visualization
+matplotlib
+seaborn
+
+# Machine Learning Core
+scikit-learn
+
+# Advanced Gradient Boosting Models
+xgboost
+lightgbm
+catboost
+
+# Dimensionality Reduction
+umap-learn
+
+# Natural Language Processing
+nltk
+spacy
+
+# Model Evaluation & Experiment Tracking (Basic)
+mlflow
+
+# Time Series Support
+statsmodels
+
+# Model Deployment
+flask
+fastapi
+uvicorn
+streamlit
+
+# Model Serialization
+joblib
+
+# Notebook Environment
+jupyter
+
+# Utility Libraries
+tqdm
+python-dotenv
