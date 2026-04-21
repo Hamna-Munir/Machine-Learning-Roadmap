@@ -2,7 +2,7 @@
 
 ## Overview
 
-Data Preprocessing is the **first and most important step** in any Machine Learning pipeline.  
+Data Preprocessing is the **first and most important step** in any Machine Learning pipeline. 
 It involves cleaning, transforming, and organizing raw data into a suitable format for model training.
 
 This module focuses on essential preprocessing techniques used in real-world ML workflows.
