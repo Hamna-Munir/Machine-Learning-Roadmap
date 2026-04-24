@@ -1,7 +1,7 @@
 # =============================================================================
 # 📦 Feature Scaling — Reusable ML Script
 # =============================================================================
-# Author   : ML Repository
+# Author   : Hamna Munir
 # Topic    : 01_Data_Preprocessing / Feature_Scaling
 # File     : feature_scaling.py
 # =============================================================================
