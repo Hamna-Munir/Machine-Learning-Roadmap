@@ -2,7 +2,7 @@
 
 ## Overview
 
-Supervised Learning is the **core of predictive machine learning** — the process of training  
+Supervised Learning is the **core of predictive machine learning** — the process of training 
 a model on **labeled data** (input-output pairs) so it can learn the mapping from features  
 to a target variable and make accurate predictions on unseen data.
 
