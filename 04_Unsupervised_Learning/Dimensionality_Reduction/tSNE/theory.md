@@ -1,548 +1,311 @@
-# =============================================================================
-# 📦 Linear Regression — Reusable ML Script
-# =============================================================================
-# Author   : Hamna Munir
-# Topic    : 03_Supervised_Learning / Regression / Linear_Regression
-# File     : linear_regression.py
-# =============================================================================
+# 📘 t-SNE — Theory
 
-# -----------------------------------------------------------------------------
-# 📚 Imports
-# -----------------------------------------------------------------------------
-import numpy as np
-import pandas as pd
+---
 
-from sklearn.linear_model import LinearRegression, SGDRegressor
-from sklearn.preprocessing import StandardScaler, PolynomialFeatures
-from sklearn.model_selection import train_test_split, cross_val_score, KFold
-from sklearn.metrics import (
-    mean_absolute_error, mean_squared_error,
-    r2_score, mean_absolute_percentage_error
+## 📌 What is t-SNE?
+
+t-SNE (**t-distributed Stochastic Neighbor Embedding**) is a **non-linear  
+dimensionality reduction technique** primarily designed for **visualizing  
+high-dimensional data** in 2D or 3D. It preserves the **local structure**  
+(nearby points stay nearby) rather than global structure.
+
+```
+High-dimensional space (d dimensions):   Low-dimensional space (2D):
+  x₁, x₂, ..., xd         →  t-SNE  →     y₁, y₂
+
+  Complex, overlapping         Compact, separated clusters
+  clusters in many dims        that reveal natural groupings
+```
+
+**Visual intuition:**
+```
+Before t-SNE (raw high-d data):    After t-SNE (2D projection):
+  ● ◆ ▲ ● ◆ ▲ ● ◆ ▲               ●●●●●
+  ◆ ● ▲ ◆ ● ▲ ◆ ▲ ●               (cluster 1)
+  (all mixed up)                        ◆◆◆◆◆
+                                        (cluster 2)
+                                              ▲▲▲▲▲
+                                              (cluster 3)
+```
+
+> 💡 "t-SNE is a microscope for high-dimensional data —  
+>      it reveals hidden cluster structure that is invisible  
+>      in the raw feature space."
+
+---
+
+## 🔍 When to Use t-SNE?
+
+| Condition | Use t-SNE? |
+|-----------|:---------:|
+| Visualize high-dimensional clusters | ✅ Yes — primary use |
+| Explore class separation before modeling | ✅ Yes |
+| Understand embedding quality | ✅ Yes |
+| Need to project new data | ❌ No — no transform() method |
+| Need interpretable components | ❌ No — axes have no meaning |
+| Need to preserve global structure | ❌ No → PCA or UMAP |
+| Use as input features for ML | ❌ No — non-reproducible axes |
+| Large dataset (> 100K rows) | ❌ No → O(n²), too slow; use UMAP |
+
+---
+
+## 🧮 The Algorithm — Step by Step
+
+### Step 1: Compute Pairwise Similarities in High-D Space
+
+```
+For each pair of points (i, j) in the original d-dimensional space:
+  Compute the conditional probability that point i would pick j as neighbor:
+
+            exp(−||xᵢ − xⱼ||² / 2σᵢ²)
+  p(j|i) = ─────────────────────────────────
+              Σₖ≠ᵢ exp(−||xᵢ − xₖ||² / 2σᵢ²)
+
+  Where σᵢ is the bandwidth of the Gaussian centered at xᵢ
+  (chosen via perplexity — see below)
+
+Symmetrize:
+  pᵢⱼ = (p(j|i) + p(i|j)) / 2n
+
+Result: pᵢⱼ ≈ HIGH if xᵢ and xⱼ are close
+         pᵢⱼ ≈ LOW  if xᵢ and xⱼ are far
+```
+
+### Step 2: Define Similarities in Low-D Space (t-distribution)
+
+```
+For points yᵢ, yⱼ in the 2D embedding:
+  Use Student's t-distribution (heavy-tailed) instead of Gaussian:
+
+           (1 + ||yᵢ − yⱼ||²)⁻¹
+  qᵢⱼ = ──────────────────────────────────
+          Σₖ≠ₗ (1 + ||yₖ − yₗ||²)⁻¹
+
+Why t-distribution?
+  → Heavy tails allow moderately distant points to be placed MUCH farther apart
+  → Prevents crowding of points in the low-d space (the "crowding problem")
+  → Creates clear visual separation between clusters
+```
+
+### Step 3: Minimize KL Divergence
+
+```
+Objective: make qᵢⱼ match pᵢⱼ as closely as possible
+
+Loss = KL(P || Q) = Σᵢ Σⱼ pᵢⱼ × log(pᵢⱼ / qᵢⱼ)
+
+Optimization: Gradient descent in the 2D embedding space
+
+∂KL/∂yᵢ = 4 × Σⱼ (pᵢⱼ − qᵢⱼ)(yᵢ − yⱼ)(1 + ||yᵢ − yⱼ||²)⁻¹
+
+→ Points with high pᵢⱼ but low qᵢⱼ: attract each other in 2D
+→ Points with low pᵢⱼ but high qᵢⱼ: repel each other in 2D
+```
+
+---
+
+## 🎛️ Key Hyperparameters
+
+### 1. Perplexity
+
+```
+Perplexity ≈ effective number of neighbors considered for each point
+
+Low perplexity (5–10):
+  → Very local focus — only closest neighbors matter
+  → Clusters may fragment into many small sub-clusters
+  → Reveals micro-structure
+
+High perplexity (30–50):
+  → Broader neighborhood → more global-ish view
+  → Smoother, larger clusters
+  → Better for large, dense datasets
+
+Typical range: 5–50
+Rule of thumb: perplexity ≈ √n  (where n = dataset size)
+sklearn default: 30
+
+⚠️ ALWAYS run t-SNE with multiple perplexity values
+    Different values reveal different aspects of structure
+```
+
+### 2. Learning Rate (eta)
+
+```
+Controls step size during gradient descent optimization.
+
+Too small  → slow convergence, points cluster in center
+Too large  → points explode to edges, no structure visible
+Typical    : 100–1000
+sklearn default: 'auto' = max(n/early_exaggeration, 50)
+
+Note: sklearn >= 1.2 uses 'auto' by default (recommended)
+```
+
+### 3. n_iter (Number of Iterations)
+
+```
+Optimization runs in two phases:
+  Phase 1 (early exaggeration): pᵢⱼ artificially inflated
+                                 → forces natural cluster formation
+  Phase 2 (refinement):        normal optimization
+                                 → fine-tunes cluster positions
+
+n_iter < 250  → usually insufficient (too few iterations)
+n_iter = 1000 → sklearn default (usually enough)
+n_iter = 5000 → better convergence for complex data
+```
+
+### 4. Early Exaggeration
+
+```
+Multiplier applied to pᵢⱼ in early optimization phase:
+  Large pᵢⱼ → tight initial clustering → clusters form more distinctly
+
+sklearn default: 12.0 (usually no need to change)
+```
+
+---
+
+## ⚠️ Critical Pitfalls and Misinterpretations
+
+### 1. Distances Between Clusters ARE NOT Meaningful
+```
+In t-SNE output:
+  ✅ Points that are close = similar in original space
+  ❌ Distance between clusters ≠ actual similarity between clusters
+  ❌ Cluster A being "closer" to B than C is NOT meaningful
+```
+
+### 2. Cluster Sizes ARE NOT Meaningful
+```
+In t-SNE:
+  ❌ A large cluster is NOT necessarily a larger/denser group
+  ❌ A small cluster is NOT necessarily a rare group
+  → Cluster sizes depend on perplexity and local density, not actual sizes
+```
+
+### 3. Different Runs Give Different Layouts
+```
+t-SNE uses random initialization:
+  → Two runs with same data give topologically similar but
+     geometrically different plots (rotated, reflected, rearranged)
+  → Set random_state for reproducibility
+  → Clusters will be the same, but their positions may differ
+```
+
+### 4. Perplexity Too Low → Fragmented Clusters
+```
+perplexity=5 on data with 500 points per class:
+  → Each cluster fragments into 10–20 sub-clusters
+  → Looks like many small groups instead of a few large ones
+  → NOT real sub-structure (just an artifact of perplexity)
+```
+
+### 5. Cannot Transform New Points
+```
+t-SNE has no transform() method:
+  → Must re-run the entire algorithm with new data included
+  → Cannot add a new point to an existing t-SNE embedding
+  → For production: use PCA or UMAP instead
+```
+
+---
+
+## 📊 Perplexity Effect — Visual Summary
+
+```
+Same dataset, different perplexity:
+
+Perplexity = 5:              Perplexity = 30:          Perplexity = 100:
+  ● ●● ● ● ●                    ●●●●●                    ●●●●●●●
+   ● ●●●● ●                    ●●●●●●●                  ●●●●●●●●●
+  ● ● ●● ●                    ●●●●●●●●                 ●●●●●●●●●●
+
+  (fragmented —               (good clusters —          (over-smoothed —
+   too many small              natural structure          losing local detail)
+   sub-clusters)               visible)
+```
+
+---
+
+## 🔄 t-SNE vs PCA vs UMAP
+
+| Aspect | t-SNE | PCA | UMAP |
+|--------|:-----:|:---:|:----:|
+| Linear | ❌ No | ✅ Yes | ❌ No |
+| Preserves local structure | ✅ Excellent | ⚠️ Partial | ✅ Excellent |
+| Preserves global structure | ❌ No | ✅ Yes | ⚠️ Partial |
+| Speed | ❌ Slow O(n²) | ✅ Fast | ✅ Fast O(n log n) |
+| Can transform new data | ❌ No | ✅ Yes | ✅ Yes |
+| Deterministic | ❌ No (random) | ✅ Yes | ❌ No (random) |
+| Best for | Visualization | Preprocessing | Both |
+| Interpretable axes | ❌ No | ✅ Yes | ❌ No |
+| Scalable (large n) | ❌ No | ✅ Yes | ✅ Yes |
+
+---
+
+## ⚡ Barnes-Hut t-SNE (Approximate, Faster)
+
+```
+Standard t-SNE: O(n²) — infeasible for n > 10,000
+Barnes-Hut t-SNE: O(n log n) — handles up to ~100,000 points
+
+Key idea:
+  Approximate distant repulsive forces using tree structure
+  → Nearby interactions: exact
+  → Distant interactions: approximated via space-partitioning tree
+
+sklearn: TSNE(method='barnes_hut', angle=0.5)  ← default for large n
+         TSNE(method='exact')                   ← for small n (< 5000)
+
+angle: trade-off between speed and accuracy
+  0.2 → more accurate, slower
+  0.8 → faster, less accurate
+  0.5 → sklearn default
+```
+
+---
+
+## 🎛️ sklearn Implementation
+
+```python
+from sklearn.manifold import TSNE
+
+# Standard usage
+tsne = TSNE(
+    n_components=2,
+    perplexity=30,
+    learning_rate='auto',
+    n_iter=1000,
+    random_state=42,
+    init='pca',        # better than random init
+    method='barnes_hut',
+    n_jobs=-1,
 )
-from sklearn.pipeline import Pipeline
-import statsmodels.api as sm
-from scipy import stats
+X_tsne = tsne.fit_transform(X_scaled)
 
-import warnings
-warnings.filterwarnings("ignore")
+# For large datasets: reduce with PCA first
+from sklearn.decomposition import PCA
+X_pca_50  = PCA(n_components=50).fit_transform(X_scaled)
+X_tsne_2d = TSNE(n_components=2, perplexity=30,
+                  random_state=42).fit_transform(X_pca_50)
+```
 
+---
 
-# =============================================================================
-# 🔧 1. TRAIN SIMPLE LINEAR REGRESSION (OLS)
-# =============================================================================
+## 🔗 Related Topics
 
-def train_linear_regression(X_train: pd.DataFrame,
-                              X_test: pd.DataFrame,
-                              y_train: pd.Series,
-                              y_test: pd.Series,
-                              fit_intercept: bool = True) -> dict:
-    """
-    Trains a Linear Regression model using sklearn's OLS implementation.
+- `PCA` — Fast linear alternative; use PCA first to reduce to 50D before t-SNE
+- `LDA` — Supervised reduction; useful for class-labeled visualization
+- `04_Unsupervised_Learning/KMeans` — Apply after t-SNE for cluster analysis
+- `04_Unsupervised_Learning/DBSCAN` — Combine with t-SNE 2D output for clustering
 
-    Args:
-        X_train       : Training features
-        X_test        : Test features
-        y_train       : Training target
-        y_test        : Test target
-        fit_intercept : Whether to fit an intercept term (default: True)
+---
 
-    Returns:
-        Dictionary with model, predictions, and evaluation metrics
-    """
-    model = LinearRegression(fit_intercept=fit_intercept)
-    model.fit(X_train, y_train)
+## 📚 References
 
-    y_pred_train = model.predict(X_train)
-    y_pred_test  = model.predict(X_test)
-
-    metrics = evaluate_regression(y_train, y_pred_train, y_test, y_pred_test)
-
-    print(f"[LinearRegression] Intercept: {model.intercept_:.4f}")
-    print(f"  Coefficients: {dict(zip(X_train.columns, model.coef_.round(4)))}")
-    _print_metrics(metrics)
-
-    return {
-        "model"          : model,
-        "y_pred_train"   : y_pred_train,
-        "y_pred_test"    : y_pred_test,
-        "metrics"        : metrics,
-        "coefficients"   : pd.Series(model.coef_, index=X_train.columns),
-        "intercept"      : model.intercept_,
-    }
-
-
-# =============================================================================
-# 🔧 2. TRAIN WITH GRADIENT DESCENT (SGDRegressor)
-# =============================================================================
-
-def train_sgd_regression(X_train: pd.DataFrame,
-                           X_test: pd.DataFrame,
-                           y_train: pd.Series,
-                           y_test: pd.Series,
-                           learning_rate: str = "invscaling",
-                           eta0: float = 0.01,
-                           max_iter: int = 1000,
-                           random_state: int = 42) -> dict:
-    """
-    Trains Linear Regression via Stochastic Gradient Descent (SGD).
-
-    Best for:
-        - Very large datasets where matrix inversion is too slow
-        - Online learning / streaming data
-
-    Args:
-        X_train       : Training features (should be scaled)
-        X_test        : Test features
-        y_train       : Training target
-        y_test        : Test target
-        learning_rate : Learning rate schedule ('constant', 'invscaling', 'adaptive')
-        eta0          : Initial learning rate (default: 0.01)
-        max_iter      : Maximum number of passes over training data
-        random_state  : Reproducibility seed
-
-    Returns:
-        Dictionary with model, predictions, and evaluation metrics
-    """
-    scaler = StandardScaler()
-    X_train_sc = scaler.fit_transform(X_train)
-    X_test_sc  = scaler.transform(X_test)
-
-    model = SGDRegressor(
-        loss="squared_error",
-        learning_rate=learning_rate,
-        eta0=eta0,
-        max_iter=max_iter,
-        random_state=random_state,
-        tol=1e-4,
-    )
-    model.fit(X_train_sc, y_train)
-
-    y_pred_train = model.predict(X_train_sc)
-    y_pred_test  = model.predict(X_test_sc)
-
-    metrics = evaluate_regression(y_train, y_pred_train, y_test, y_pred_test)
-
-    print(f"[SGDRegressor] eta0={eta0} | max_iter={max_iter}")
-    _print_metrics(metrics)
-
-    return {
-        "model"       : model,
-        "scaler"      : scaler,
-        "y_pred_train": y_pred_train,
-        "y_pred_test" : y_pred_test,
-        "metrics"     : metrics,
-    }
-
-
-# =============================================================================
-# 🔧 3. STATSMODELS OLS — STATISTICAL SUMMARY
-# =============================================================================
-
-def train_ols_statsmodels(X_train: pd.DataFrame,
-                            y_train: pd.Series) -> sm.regression.linear_model.RegressionResultsWrapper:
-    """
-    Fits OLS using statsmodels — provides full statistical summary including
-    p-values, confidence intervals, F-statistic, and assumption tests.
-
-    Best for:
-        - Statistical inference (are coefficients significant?)
-        - Checking assumptions formally
-
-    Args:
-        X_train : Training features DataFrame
-        y_train : Training target Series
-
-    Returns:
-        Fitted statsmodels OLS result object
-    """
-    X_const = sm.add_constant(X_train)   # add intercept column
-    model   = sm.OLS(y_train, X_const).fit()
-
-    print("[Statsmodels OLS] Full Summary:")
-    print(model.summary())
-
-    return model
-
-
-# =============================================================================
-# 🔧 4. CROSS-VALIDATION
-# =============================================================================
-
-def cross_validate_linear_regression(X: pd.DataFrame,
-                                       y: pd.Series,
-                                       cv: int = 5,
-                                       scoring: str = "r2") -> dict:
-    """
-    Performs K-Fold Cross-Validation on Linear Regression.
-
-    Args:
-        X       : Full feature DataFrame
-        y       : Full target Series
-        cv      : Number of folds (default: 5)
-        scoring : Scoring metric — 'r2', 'neg_mean_squared_error', 'neg_mean_absolute_error'
-
-    Returns:
-        Dictionary with fold scores, mean, and std
-    """
-    model  = LinearRegression()
-    kf     = KFold(n_splits=cv, shuffle=True, random_state=42)
-    scores = cross_val_score(model, X, y, cv=kf, scoring=scoring)
-
-    result = {
-        "scores"      : scores,
-        "mean"        : scores.mean(),
-        "std"         : scores.std(),
-        "fold_results": {f"Fold {i+1}": round(s, 4) for i, s in enumerate(scores)},
-    }
-
-    print(f"[Cross-Validation] K={cv} | {scoring.upper()}: "
-          f"{scores.mean():.4f} ± {scores.std():.4f}")
-    for fold, score in result["fold_results"].items():
-        print(f"  {fold}: {score}")
-
-    return result
-
-
-# =============================================================================
-# 🔧 5. SKLEARN PIPELINE (SCALE + FIT)
-# =============================================================================
-
-def build_linear_pipeline(scale: bool = True) -> Pipeline:
-    """
-    Builds a reusable sklearn Pipeline: StandardScaler + LinearRegression.
-
-    Args:
-        scale : Whether to include StandardScaler step (default: True)
-
-    Returns:
-        sklearn Pipeline object
-
-    Usage:
-        pipe = build_linear_pipeline()
-        pipe.fit(X_train, y_train)
-        y_pred = pipe.predict(X_test)
-    """
-    steps = []
-    if scale:
-        steps.append(("scaler", StandardScaler()))
-    steps.append(("model", LinearRegression()))
-
-    pipeline = Pipeline(steps)
-    print(f"[Pipeline] Built: {' → '.join([s for s, _ in steps])}")
-    return pipeline
-
-
-# =============================================================================
-# 🔧 6. EVALUATE REGRESSION MODEL
-# =============================================================================
-
-def evaluate_regression(y_train: pd.Series,
-                          y_pred_train: np.ndarray,
-                          y_test: pd.Series,
-                          y_pred_test: np.ndarray) -> dict:
-    """
-    Computes a comprehensive set of regression evaluation metrics
-    for both training and test sets.
-
-    Metrics:
-        MAE   — Mean Absolute Error
-        MSE   — Mean Squared Error
-        RMSE  — Root Mean Squared Error
-        MAPE  — Mean Absolute Percentage Error
-        R²    — Coefficient of Determination
-        Adj R²— Adjusted R² (requires n_features from X shape)
-
-    Args:
-        y_train      : True training labels
-        y_pred_train : Predicted training values
-        y_test       : True test labels
-        y_pred_test  : Predicted test values
-
-    Returns:
-        Dictionary with all metrics for train and test sets
-    """
-    def metrics(y_true, y_pred):
-        mse = mean_squared_error(y_true, y_pred)
-        return {
-            "MAE"  : round(mean_absolute_error(y_true, y_pred), 4),
-            "MSE"  : round(mse, 4),
-            "RMSE" : round(np.sqrt(mse), 4),
-            "MAPE" : round(mean_absolute_percentage_error(y_true, y_pred) * 100, 4),
-            "R²"   : round(r2_score(y_true, y_pred), 4),
-        }
-
-    return {
-        "train": metrics(y_train, y_pred_train),
-        "test" : metrics(y_test,  y_pred_test),
-    }
-
-
-# =============================================================================
-# 🔧 7. RESIDUAL ANALYSIS
-# =============================================================================
-
-def residual_analysis(y_test: pd.Series,
-                       y_pred: np.ndarray) -> dict:
-    """
-    Computes residual statistics and runs the Shapiro-Wilk normality test.
-
-    Residuals = y_true − y_predicted
-
-    Checks:
-        - Mean of residuals (should be ≈ 0)
-        - Std of residuals
-        - Shapiro-Wilk test (residuals should be normally distributed)
-        - Skewness and Kurtosis of residuals
-
-    Args:
-        y_test  : True target values
-        y_pred  : Predicted target values
-
-    Returns:
-        Dictionary with residual statistics and test results
-    """
-    residuals = np.array(y_test) - np.array(y_pred)
-    sw_stat, sw_p = stats.shapiro(residuals[:min(5000, len(residuals))])
-
-    result = {
-        "residuals"        : residuals,
-        "mean"             : round(residuals.mean(), 6),
-        "std"              : round(residuals.std(), 4),
-        "skewness"         : round(stats.skew(residuals), 4),
-        "kurtosis"         : round(stats.kurtosis(residuals), 4),
-        "shapiro_stat"     : round(sw_stat, 4),
-        "shapiro_p"        : round(sw_p, 4),
-        "normality_ok"     : sw_p > 0.05,
-    }
-
-    print(f"\n[Residual Analysis]")
-    print(f"  Mean        : {result['mean']:.6f}  (should be ≈ 0)")
-    print(f"  Std Dev     : {result['std']:.4f}")
-    print(f"  Skewness    : {result['skewness']:.4f}")
-    print(f"  Kurtosis    : {result['kurtosis']:.4f}")
-    print(f"  Shapiro-Wilk: W={result['shapiro_stat']:.4f}  p={result['shapiro_p']:.4f}  "
-          f"{'✅ Normal' if result['normality_ok'] else '❌ Non-Normal'}")
-
-    return result
-
-
-# =============================================================================
-# 🔧 8. VIF (VARIANCE INFLATION FACTOR)
-# =============================================================================
-
-def compute_vif(X: pd.DataFrame) -> pd.DataFrame:
-    """
-    Computes Variance Inflation Factor (VIF) for all features.
-
-    VIF measures how much variance of a coefficient is inflated
-    due to multicollinearity with other features.
-
-    Interpretation:
-        VIF = 1       → No multicollinearity
-        VIF = 1–5     → Low (acceptable)
-        VIF = 5–10    → Moderate (investigate)
-        VIF > 10      → High (consider dropping)
-
-    Args:
-        X : Feature DataFrame
-
-    Returns:
-        DataFrame with VIF scores sorted descending
-    """
-    from statsmodels.stats.outliers_influence import variance_inflation_factor
-
-    X_sc = pd.DataFrame(StandardScaler().fit_transform(X), columns=X.columns)
-
-    vif_df = pd.DataFrame({
-        "Feature" : X.columns,
-        "VIF"     : [variance_inflation_factor(X_sc.values, i)
-                     for i in range(X_sc.shape[1])],
-    }).sort_values("VIF", ascending=False).reset_index(drop=True)
-
-    vif_df["Status"] = vif_df["VIF"].apply(
-        lambda v: "🔴 High"     if v > 10 else
-                  ("🟡 Moderate" if v > 5  else "🟢 OK")
-    )
-
-    print("\n[VIF Analysis]")
-    print(vif_df.round(2).to_string(index=False))
-    return vif_df
-
-
-# =============================================================================
-# 🔧 9. COEFFICIENT SUMMARY TABLE
-# =============================================================================
-
-def coefficient_summary(model: LinearRegression,
-                          feature_names: list,
-                          X_train: pd.DataFrame,
-                          y_train: pd.Series) -> pd.DataFrame:
-    """
-    Builds a comprehensive coefficient summary table using statsmodels
-    for p-values and confidence intervals.
-
-    Args:
-        model        : Fitted sklearn LinearRegression model
-        feature_names: List of feature column names
-        X_train      : Training features (for statsmodels refit)
-        y_train      : Training target
-
-    Returns:
-        DataFrame with coefficients, p-values, and confidence intervals
-    """
-    X_const = sm.add_constant(X_train)
-    sm_model = sm.OLS(y_train, X_const).fit()
-
-    summary = pd.DataFrame({
-        "Feature"   : ["Intercept"] + list(feature_names),
-        "Coef"      : sm_model.params.round(4).values,
-        "Std Error" : sm_model.bse.round(4).values,
-        "t-Stat"    : sm_model.tvalues.round(4).values,
-        "p-value"   : sm_model.pvalues.round(4).values,
-        "CI Lower"  : sm_model.conf_int()[0].round(4).values,
-        "CI Upper"  : sm_model.conf_int()[1].round(4).values,
-        "Significant": ["✅" if p < 0.05 else "❌" for p in sm_model.pvalues],
-    })
-
-    print("\n[Coefficient Summary]")
-    print(summary.to_string(index=False))
-    return summary
-
-
-# =============================================================================
-# 🔧 10. UTILITY — REGRESSION REPORT
-# =============================================================================
-
-def regression_report(y_test: pd.Series,
-                        y_pred: np.ndarray,
-                        model_name: str = "Linear Regression") -> pd.DataFrame:
-    """
-    Prints and returns a formatted regression evaluation report.
-
-    Args:
-        y_test     : True target values
-        y_pred     : Predicted target values
-        model_name : Name of the model (for display)
-
-    Returns:
-        DataFrame with all metrics
-    """
-    mse = mean_squared_error(y_test, y_pred)
-
-    report = pd.DataFrame([{
-        "Model"     : model_name,
-        "MAE"       : round(mean_absolute_error(y_test, y_pred), 4),
-        "MSE"       : round(mse, 4),
-        "RMSE"      : round(np.sqrt(mse), 4),
-        "MAPE %"    : round(mean_absolute_percentage_error(y_test, y_pred) * 100, 4),
-        "R²"        : round(r2_score(y_test, y_pred), 4),
-    }])
-
-    print(f"\n📊 Regression Report — {model_name}")
-    print(report.to_string(index=False))
-    return report
-
-
-# =============================================================================
-# 🔧 HELPER — PRINT METRICS
-# =============================================================================
-
-def _print_metrics(metrics: dict) -> None:
-    """Internal helper to print train/test evaluation metrics."""
-    for split in ["train", "test"]:
-        m = metrics[split]
-        print(f"  [{split.upper():5s}] MAE={m['MAE']:>10.4f} | RMSE={m['RMSE']:>10.4f} | "
-              f"R²={m['R²']:>7.4f} | MAPE={m['MAPE']:>7.2f}%")
-
-
-# =============================================================================
-# 🚀 MAIN — Demo with Synthetic Dataset
-# =============================================================================
-
-if __name__ == "__main__":
-
-    # ── Synthetic Dataset ──────────────────────────────────────────────────
-    np.random.seed(42)
-    n = 500
-
-    X = pd.DataFrame({
-        "Experience" : np.random.randint(0, 30, n),
-        "Score"      : np.random.uniform(40, 100, n),
-        "Age"        : np.random.randint(22, 60, n),
-    })
-
-    # Target: Salary with a linear relationship + noise
-    y = pd.Series(
-        20_000
-        + 2_500  * X["Experience"]
-        + 500    * X["Score"]
-        + 300    * X["Age"]
-        + np.random.normal(0, 5_000, n),
-        name="Salary"
-    )
-
-    print("=" * 65)
-    print("📊 Dataset Info")
-    print("=" * 65)
-    print(f"Shape  : {X.shape}")
-    print(f"Target : {y.name}  |  Mean: £{y.mean():,.0f}  |  Std: £{y.std():,.0f}")
-
-    # ── Train-Test Split ───────────────────────────────────────────────────
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.2, random_state=42
-    )
-
-    # ── 1. OLS Linear Regression ───────────────────────────────────────────
-    print("\n" + "=" * 65)
-    print("1️⃣  OLS Linear Regression (sklearn)")
-    print("=" * 65)
-    result = train_linear_regression(X_train, X_test, y_train, y_test)
-
-    # ── 2. Statsmodels OLS ─────────────────────────────────────────────────
-    print("\n" + "=" * 65)
-    print("2️⃣  Statsmodels OLS — Statistical Summary")
-    print("=" * 65)
-    sm_model = train_ols_statsmodels(X_train, y_train)
-
-    # ── 3. Coefficient Summary ─────────────────────────────────────────────
-    print("\n" + "=" * 65)
-    print("3️⃣  Coefficient Summary with p-values")
-    print("=" * 65)
-    coef_df = coefficient_summary(
-        result["model"], X_train.columns, X_train, y_train
-    )
-
-    # ── 4. VIF Analysis ────────────────────────────────────────────────────
-    print("\n" + "=" * 65)
-    print("4️⃣  VIF Multicollinearity Analysis")
-    print("=" * 65)
-    vif_df = compute_vif(X_train)
-
-    # ── 5. Residual Analysis ───────────────────────────────────────────────
-    print("\n" + "=" * 65)
-    print("5️⃣  Residual Analysis")
-    print("=" * 65)
-    res = residual_analysis(y_test, result["y_pred_test"])
-
-    # ── 6. Cross-Validation ────────────────────────────────────────────────
-    print("\n" + "=" * 65)
-    print("6️⃣  5-Fold Cross-Validation")
-    print("=" * 65)
-    cv_result = cross_validate_linear_regression(X, y, cv=5, scoring="r2")
-
-    # ── 7. Pipeline ────────────────────────────────────────────────────────
-    print("\n" + "=" * 65)
-    print("7️⃣  Sklearn Pipeline (Scale + LinearRegression)")
-    print("=" * 65)
-    pipe = build_linear_pipeline(scale=True)
-    pipe.fit(X_train, y_train)
-    y_pipe_pred = pipe.predict(X_test)
-    regression_report(y_test, y_pipe_pred, "Pipeline (Scaled LinearRegression)")
-
-    # ── 8. SGD Regression ─────────────────────────────────────────────────
-    print("\n" + "=" * 65)
-    print("8️⃣  SGD Regression (Gradient Descent)")
-    print("=" * 65)
-    sgd_result = train_sgd_regression(X_train, X_test, y_train, y_test)
-
-    print("\n✅ All Linear Regression techniques demonstrated successfully!")
+- Scikit-learn `TSNE`: [https://scikit-learn.org/stable/modules/generated/sklearn.manifold.TSNE.html](https://scikit-learn.org/stable/modules/generated/sklearn.manifold.TSNE.html)
+- Original t-SNE Paper (van der Maaten & Hinton, 2008): [https://jmlr.org/papers/volume9/vandermaaten08a/vandermaaten08a.pdf](https://jmlr.org/papers/volume9/vandermaaten08a/vandermaaten08a.pdf)
+- "How to Use t-SNE Effectively" (Wattenberg et al., 2016): [https://distill.pub/2016/misread-tsne/](https://distill.pub/2016/misread-tsne/)
+- Barnes-Hut t-SNE (van der Maaten, 2014): [https://arxiv.org/abs/1301.3342](https://arxiv.org/abs/1301.3342)
